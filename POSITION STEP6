@@ -1,0 +1,215 @@
+Menu 追加
+
+   Portfolio portfolio = new Portfolio();
+        portfolio.initializePositions("C:\\Users\\coscos\\Desktop\\new_trade.csv");
+        TradeList tradeList = new TradeList(portfolio);
+
+        System.out.println("株式取引管理システムを開始します");
+        StockList stockList = new StockList(this.csvFilePath);
+去掉地址 tradeList
+
+
+Tradelist 追加
+  private Portfolio portfolio;
+    Scanner scanner = new Scanner(System.in);
+    Trade records = new Trade();
+
+
+    public TradeList(Portfolio portfolio) {
+        this.portfolio = portfolio;
+    }
+
+在writeTradelist里追加
+ try {
+            portfolio.updatePosition(records); //ポジションの更新
+        } catch (IllegalArgumentException e) {
+            System.out.println("エラー: " + e.getMessage());
+            return;
+        }
+
+
+Position
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+public class Position {
+    private String code; //銘柄
+    private int quantity;//保有数量
+    private BigDecimal averagePrice;//平均取得単価
+    private BigDecimal realizedPnL;//実現損益
+    private BigDecimal marketPrice;//時価
+
+    public Position(String code) {
+        this.code = code;
+        this.quantity = 0;
+        this.averagePrice = BigDecimal.ZERO;
+        this.realizedPnL = BigDecimal.ZERO;
+    }
+
+
+    public void addTransaction(TradeType tradeType, int transactionQuantity, BigDecimal transactionPrice) {
+        if (tradeType == TradeType.SELL) {
+            if (this.quantity < transactionQuantity) {
+                throw new IllegalArgumentException("数量が足りない");
+            }
+            BigDecimal profit = transactionPrice.subtract(averagePrice).multiply(BigDecimal.valueOf(transactionQuantity));
+            //（現在価格ー平均価格）X売った数量
+            realizedPnL = realizedPnL.add(profit);
+            quantity -= transactionQuantity;
+            if (quantity == 0) {
+                averagePrice = BigDecimal.ZERO;
+            }
+        } else if (tradeType == TradeType.BUY) {
+            BigDecimal totalCost = averagePrice.multiply(BigDecimal.valueOf(quantity))
+                    .add(transactionPrice.multiply(BigDecimal.valueOf(transactionQuantity)));
+            quantity += transactionQuantity;
+            averagePrice = totalCost.divide(BigDecimal.valueOf(quantity), 2, RoundingMode.HALF_UP);
+        }
+
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public BigDecimal getAveragePrice() {
+        return averagePrice;
+    }
+
+    public BigDecimal getRealizedPnL() {
+        return realizedPnL;
+    }
+
+    public BigDecimal getMarketPrice() {
+        return marketPrice;
+    }
+
+    public void setCode(String symbol) {
+        this.code = symbol;
+    }
+
+}
+
+
+
+
+Portfolio
+
+
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.Set;
+
+public class Portfolio {
+
+    private final Map<String, Position> positions = new HashMap<>();
+    private final Map<String, BigDecimal> marketPrices = new HashMap<>();
+
+    public void initializePositions(String tradeHistoryPath) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
+        //削除する。
+        try (BufferedReader br = new BufferedReader(new FileReader(tradeHistoryPath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split("\t");
+                LocalDateTime dateTime = LocalDateTime.parse(parts[0].trim(), formatter);
+                String code = parts[1].trim();
+                TradeType type = TradeType.valueOf(parts[2].toUpperCase());
+                int quantity = Integer.parseInt(parts[3].trim());
+                BigDecimal price = new BigDecimal(parts[4].trim());
+
+                Trade trademanage = new Trade();
+                trademanage.setTradeDateTime(dateTime);
+                trademanage.setStockSymbol(code);
+                trademanage.setTransactionType(type);
+                trademanage.setQuantity(quantity);
+                trademanage.setUnitPrice(price);
+
+                updatePosition(trademanage);
+            }
+        } catch (IOException e) {
+            System.out.println("初期化が失敗しました。");
+        }
+    }
+
+    public void updatePosition(Trade records) {
+        Position position = positions.computeIfAbsent(records.getStockSymbol(), Position::new);
+        position.addTransaction(records.getTransactionType(), records.getQuantity(), records.getUnitPrice());
+
+    }
+
+    public void displayPositions() {
+        if (positions.isEmpty()) {
+            System.out.println("ポジションが存在しません");
+            return;
+        }
+
+        System.out.println("|------------|------------|----------------|--------------------|--------------------|--------------------|");
+        System.out.println("|  銘柄コード |   保有数量   |    平均取得単価  |       評価額        |       評価損益      |        実現損益      |");
+        System.out.println("|------------|------------|----------------|--------------------|--------------------|--------------------|");
+
+        for (Map.Entry<String, Position> entry : positions.entrySet()) {
+            Position position = entry.getValue();
+            BigDecimal marketPrice = marketPrices.getOrDefault(entry.getKey(), null);
+            BigDecimal valuation, unrealizedPnL, realizedPnL = position.getRealizedPnL();
+
+            if (marketPrice != null) {
+                valuation = marketPrice.multiply(BigDecimal.valueOf(position.getQuantity()));
+                unrealizedPnL = valuation.subtract(position.getAveragePrice().multiply(BigDecimal.valueOf(position.getQuantity())));
+            } else {
+                valuation = null;
+                unrealizedPnL = null;
+            }
+
+            System.out.format("| %-10s | %,10d | %,14.2f | %16s | %16s | %16s |%n",
+                    position.getCode(), position.getQuantity(), position.getAveragePrice(),
+                    (valuation != null) ? String.format("%,18.2f", valuation) : "未算出",
+                    (unrealizedPnL != null) ? String.format("%,18.2f", unrealizedPnL) : "未算出",
+                    (realizedPnL != null) ? String.format("%,18.2f", realizedPnL) : "未算出");
+        }
+        System.out.println("|------------|------------|----------------|--------------------|--------------------|--------------------|");
+    }
+
+    public Position getPosition(String code) {
+        return positions.get(code);
+    }
+
+    public Set<String> getCodes() {
+        return positions.keySet();
+    }
+
+
+    public void revaluePositions() {
+        Scanner scanner = new Scanner(System.in);
+        for (String code : this.getCodes()) {
+            BigDecimal price = null;
+            while (price == null) {
+                System.out.printf("銘柄 %s　現在の市場価格を入力して下さい: ", code);
+                String input = scanner.nextLine();
+                try {
+                    price = new BigDecimal(input);
+                    if (price.compareTo(BigDecimal.ZERO) < 0) {
+                        System.out.println("価格を負にすることはできません。再入力をしてください");
+                        price = null;
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println("数値ではない、有効な数値を入れてください");
+                }
+            }
+            marketPrices.put(code, price);
+        }
+    }
+}

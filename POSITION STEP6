@@ -1,105 +1,84 @@
-Menu 追加
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Scanner;
 
-   Portfolio portfolio = new Portfolio();
+
+
+public class Menu {
+
+    private final String csvFilePath;
+    public Menu(String csvFilePath){
+        this.csvFilePath=csvFilePath;
+
+    }
+    public void showMenu() {
+        Portfolio portfolio = new Portfolio();
         portfolio.initializePositions("C:\\Users\\coscos\\Desktop\\new_trade.csv");
-        TradeList tradeList = new TradeList(portfolio);
+        Trade1 trade = new Trade1(portfolio);
 
         System.out.println("株式取引管理システムを開始します");
         StockList stockList = new StockList(this.csvFilePath);
-去掉地址 tradeList
 
 
-Tradelist 追加
-  private Portfolio portfolio;
-    Scanner scanner = new Scanner(System.in);
-    Trade records = new Trade();
+
+// 加载股票数据和交易数据
 
 
-    public TradeList(Portfolio portfolio) {
-        this.portfolio = portfolio;
-    }
+        // 加载股票数据和交易数据
 
-在writeTradelist里追加
- try {
-            portfolio.updatePosition(records); //ポジションの更新
-        } catch (IllegalArgumentException e) {
-            System.out.println("エラー: " + e.getMessage());
-            return;
+
+        while (true) {
+            showFunction();
+            AvailableFunctionEnum userChoice = getUserChoice();
+            switch (userChoice) {
+                case DISPLAY -> stockList.displayStockMasterList();
+                case REGISTER -> stockList.registerNewStockMaster();
+                case TRADE -> trade.trade1();
+                case DISPLAYTRADLIST -> trade.printTrades();
+                case DISPLAYTRADLIST1 -> portfolio.displayPositions();
+
+                case DISPLAYTRADLIST2-> portfolio.revaluePositions();
+
+                case EXIT -> {
+                    System.out.println("アプリケーションを終了する");
+                    System.exit(0);
+                }
+            }
         }
-
-
-Position
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-
-public class Position {
-    private String code; //銘柄
-    private int quantity;//保有数量
-    private BigDecimal averagePrice;//平均取得単価
-    private BigDecimal realizedPnL;//実現損益
-    private BigDecimal marketPrice;//時価
-
-    public Position(String code) {
-        this.code = code;
-        this.quantity = 0;
-        this.averagePrice = BigDecimal.ZERO;
-        this.realizedPnL = BigDecimal.ZERO;
     }
 
 
-    public void addTransaction(TradeType tradeType, int transactionQuantity, BigDecimal transactionPrice) {
-        if (tradeType == TradeType.SELL) {
-            if (this.quantity < transactionQuantity) {
-                throw new IllegalArgumentException("数量が足りない");
+    private static void showFunction(){
+        System.out.println("操作するメニューを選んでください" );
+        for (AvailableFunctionEnum function : AvailableFunctionEnum.values()) {
+            System.out.printf("  %s. %s\n", function.getCode(), function.getDescription());
+        }
+    }
+
+    private  AvailableFunctionEnum getUserChoice(){
+        Scanner sc=new Scanner(System.in);
+        while(true){
+            System.out.print("入力してください:");
+            String userInput=sc.nextLine().trim();
+            try{
+                int userInputNumber= Integer.parseInt(userInput);
+                AvailableFunctionEnum userChoice=AvailableFunctionEnum.fromCode(userInputNumber);
+                if(userChoice!=null){
+                    return userChoice;
+                }else{
+                    System.out.printf("\"%d\"に対応するメニューは存在しません。\n",userInputNumber);
+                }
+            }catch(NumberFormatException e){
+                System.out.printf("\"%s\"に対応するメニューは存在しません。\n",userInput);
             }
-            BigDecimal profit = transactionPrice.subtract(averagePrice).multiply(BigDecimal.valueOf(transactionQuantity));
-            //（現在価格ー平均価格）X売った数量
-            realizedPnL = realizedPnL.add(profit);
-            quantity -= transactionQuantity;
-            if (quantity == 0) {
-                averagePrice = BigDecimal.ZERO;
-            }
-        } else if (tradeType == TradeType.BUY) {
-            BigDecimal totalCost = averagePrice.multiply(BigDecimal.valueOf(quantity))
-                    .add(transactionPrice.multiply(BigDecimal.valueOf(transactionQuantity)));
-            quantity += transactionQuantity;
-            averagePrice = totalCost.divide(BigDecimal.valueOf(quantity), 2, RoundingMode.HALF_UP);
+
         }
 
     }
 
-    public String getCode() {
-        return code;
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public BigDecimal getAveragePrice() {
-        return averagePrice;
-    }
-
-    public BigDecimal getRealizedPnL() {
-        return realizedPnL;
-    }
-
-    public BigDecimal getMarketPrice() {
-        return marketPrice;
-    }
-
-    public void setCode(String symbol) {
-        this.code = symbol;
-    }
 
 }
-
-
-
-
-Portfolio
-
+////////////////////////////////
 
 
 import java.io.BufferedReader;
@@ -120,7 +99,6 @@ public class Portfolio {
 
     public void initializePositions(String tradeHistoryPath) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
-        //削除する。
         try (BufferedReader br = new BufferedReader(new FileReader(tradeHistoryPath))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -213,3 +191,320 @@ public class Portfolio {
         }
     }
 }
+//////////////////////////
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+public class Position {
+    private String code; //銘柄
+    private int quantity;//保有数量
+    private BigDecimal averagePrice;//平均取得単価
+    private BigDecimal realizedPnL;//実現損益
+    private BigDecimal marketPrice;//時価
+
+    public Position(String code) {
+        this.code = code;
+        this.quantity = 0;
+        this.averagePrice = BigDecimal.ZERO;
+        this.realizedPnL = BigDecimal.ZERO;
+    }
+
+
+    public void addTransaction(TradeType tradeType, int transactionQuantity, BigDecimal transactionPrice) {
+        if (tradeType == TradeType.SELL) {
+            if (this.quantity < transactionQuantity) {
+                throw new IllegalArgumentException("数量が足りない");
+            }
+            BigDecimal profit = transactionPrice.subtract(averagePrice).multiply(BigDecimal.valueOf(transactionQuantity));
+            //（現在価格ー平均価格）X売った数量
+            realizedPnL = realizedPnL.add(profit);
+            quantity -= transactionQuantity;
+            if (quantity == 0) {
+                averagePrice = BigDecimal.ZERO;
+            }
+        } else if (tradeType == TradeType.BUY) {
+            BigDecimal totalCost = averagePrice.multiply(BigDecimal.valueOf(quantity))
+                    .add(transactionPrice.multiply(BigDecimal.valueOf(transactionQuantity)));
+            quantity += transactionQuantity;
+            averagePrice = totalCost.divide(BigDecimal.valueOf(quantity), 2, RoundingMode.HALF_UP);
+        }
+
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public BigDecimal getAveragePrice() {
+        return averagePrice;
+    }
+
+    public BigDecimal getRealizedPnL() {
+        return realizedPnL;
+    }
+
+    public BigDecimal getMarketPrice() {
+        return marketPrice;
+    }
+
+    public void setCode(String symbol) {
+        this.code = symbol;
+    }
+
+}
+///////////////////////
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.text.DecimalFormat;
+import java.time.DayOfWeek;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.*;
+
+public class Trade1 {
+    private final Portfolio portfolio;
+    Scanner scanner = new Scanner(System.in);
+    Trade records = new Trade();
+
+
+    public Trade1(Portfolio portfolio) {
+        this.portfolio = portfolio;
+    }
+
+    public void appendTradeTime() {
+        System.out.print("いつ行われた取引なのか");
+        LocalDateTime now = LocalDateTime.now();
+        System.out.println("取引日時 例(202311281003) ");
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
+
+        while (true) {
+            String datetime = scanner.nextLine();
+            try {
+                LocalDateTime tradeDateTime = LocalDateTime.parse(datetime, timeFormatter);
+                DayOfWeek week = tradeDateTime.getDayOfWeek();
+                LocalTime nowTime = LocalTime.of(tradeDateTime.getHour(), tradeDateTime.getMinute());
+                LocalTime startTime = LocalTime.of(9, 0);
+                LocalTime endTime = LocalTime.of(15, 0);
+                if (tradeDateTime.isAfter(now)) {
+                    System.out.println("未来の日時です、書き直してください例(202309281003) >");
+                } else if (week == DayOfWeek.SATURDAY || week == DayOfWeek.SUNDAY) {
+                    System.out.println("該当する日時は土日です\n平日を書いてください例(202309281003) >");
+                } else if (nowTime.isAfter(endTime) || nowTime.isBefore(startTime)) {
+                    System.out.println("該当する日時ではありません\n" +
+                            "9:00-15:00の間を書いてください例(202309281003) >");
+                } else {
+                    records.setTradeDateTime(tradeDateTime);
+                    break;
+                }
+            } catch (DateTimeParseException e) {
+                System.out.println("書式がエラーです、指定した書式で書いてください。例(202309281003)");
+            }
+        }
+
+    }
+
+    public void appendTradeCode() {
+        System.out.print("どの銘柄コードを取引したのか>");
+        while (true) {
+            String code = scanner.nextLine();
+            records.setStockSymbol(code);
+            break;
+        }
+    }
+
+    public void appendTradeMarket() {
+        System.out.println("\"買う\"か\"売る\"か\n選んでください");
+        while (true) {
+            System.out.print("1.買う\n2.売る\n>");
+            String type = scanner.nextLine();
+            switch (type) {
+                case "1" -> records.setTransactionType(TradeType.BUY);
+                case "2" -> records.setTransactionType(TradeType.SELL);
+                default -> {
+                    System.out.println("\"" + type + "\"" + "に対応する売買区分は存在しません。" +
+                            "1か2を選択してください\n---");
+                    continue;
+                }
+            }
+            break;
+        }
+    }
+
+    public void appendTradeQuantity() {
+        Position position = portfolio.getPosition(records.getStockSymbol());
+        System.out.println("何株取引したのか(正の数字で100単位で)入力してください>");
+        while (true) {
+            String quantity = scanner.nextLine();
+            try {
+                if (Integer.parseInt(quantity) % 100 == 0 && Integer.parseInt(quantity) > 0) {
+                    if (records.getTransactionType() == TradeType.SELL) {
+                        if (position.getQuantity() < Integer.parseInt(quantity)) {
+                            System.out.println("売る数量が保有量より多いです。保有量: " + position.getQuantity() + "、再入力してください");
+                            continue;
+                        }
+                    }
+                    records.setQuantity(Integer.parseInt(quantity));
+                    break;
+                } else {
+                    throw new NumberFormatException();
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("書式がエラーです。((正の数字で100単位で)入力してください)");
+            }
+        }
+    }
+
+    public void appendTradePrice() {
+        System.out.println("1株あたりいくらで取引したのか");
+        System.out.println("取引単価を小数点以下第2位まで入力してください");
+        while (true) {
+            String price = scanner.nextLine();
+            try {
+                BigDecimal unitPrice = new BigDecimal(price);
+                if (unitPrice.scale() == 2 && unitPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    records.setUnitPrice(unitPrice);
+                    break;
+                } else {
+                    throw new NumberFormatException();
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("書式がエラーです。(正の数字で小数点以下第2位まで)入力してください)");
+            }
+        }
+    }
+
+    public void trade1() {
+        appendTradeTime();
+        appendTradeCode();
+        appendTradeMarket();
+        appendTradeQuantity();
+        appendTradePrice();
+
+        try {
+            portfolio.updatePosition(records); //ポジションの更新
+        } catch (IllegalArgumentException e) {
+            System.out.println("エラー: " + e.getMessage());
+            return;
+        }
+
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
+       String filePath= "C:\\Users\\coscos\\Desktop\\new_trade.csv";
+        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(filePath), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+            String newLine = records.getTradeDateTime().format(formatter) + "\t" + records.getStockSymbol() + "\t" + records.getTransactionType() + "\t" + records.getQuantity() + "\t" + records.getUnitPrice();
+            writer.write(newLine);
+            writer.newLine();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println(records.getStockSymbol() + "が新しく登録されました");
+    }
+
+    public void printTrades() {
+        List<LocalDateTime> dateTimeList = new ArrayList<>();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
+        List<Trade> tradeDataList = new ArrayList<>();
+
+
+        try (BufferedReader reader = Files.newBufferedReader(Paths.get("C:\\Users\\coscos\\Desktop\\new_trade.csv"), StandardCharsets.UTF_8)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] columns = line.split("\t");
+                LocalDateTime dateTime = LocalDateTime.parse(columns[0], formatter);
+                String stockSymbol = columns[1];
+                String transactionType = columns[2];
+                int quantity = Integer.parseInt(columns[3]);
+                BigDecimal unitPrice = new BigDecimal(columns[4]);
+
+                Trade tradeData = new Trade(dateTime, stockSymbol, TradeType.valueOf(transactionType), quantity, unitPrice);
+                tradeDataList.add(tradeData);
+            }
+        } catch (IOException e) {
+            System.err.println("无法读取 CSV 文件：" + e.getMessage());
+            e.printStackTrace();
+
+        }
+        Collections.sort(tradeDataList, new Comparator<Trade>() {
+            @Override
+            public int compare(Trade trade1, Trade trade2) {
+                return trade2.getTradeDateTime().compareTo(trade1.getTradeDateTime()); // 降序排序
+            }
+        });
+
+
+        // 打印排序后的日期时间
+        for (Trade tradeData : tradeDataList) {
+            System.out.println(tradeData); // TradeData类中需要重写toString方法
+        }
+        displayTradeList(tradeDataList);
+
+    }
+
+
+    public void displayTradeList(List<Trade> tradeList) {
+
+        DecimalFormat decimalFormat = new DecimalFormat("#,###0.00");
+        final int DATE_TIME_LENGTH = 19; // 日期时间列的长度，示例中格式为 "yyyy-MM-dd HH:mm:ss"
+        final int STOCK_SYMBOL_LENGTH = 10; // 股票符号列的长度
+        final int TRANSACTION_TYPE_LENGTH = 6; // 交易类型列的长度
+        final int QUANTITY_LENGTH = 8; // 数量列的长度
+        final int UNIT_PRICE_LENGTH = 12; // 单价列的长度
+
+        final String HORIZONTAL_LINE = "|" + "-".repeat(DATE_TIME_LENGTH + 2) + "+" +
+                "-".repeat(STOCK_SYMBOL_LENGTH + 4) + "+" +
+                "-".repeat(TRANSACTION_TYPE_LENGTH + 7) + "+" +
+                "-".repeat(QUANTITY_LENGTH + 2) + "+" +
+                "-".repeat(UNIT_PRICE_LENGTH + 2) + "|";
+
+        final String HEADER = String.format(
+                "| %-" + DATE_TIME_LENGTH + "s | %-" + STOCK_SYMBOL_LENGTH + "s | %-" + TRANSACTION_TYPE_LENGTH + "s | %-" + QUANTITY_LENGTH + "s | %-" + UNIT_PRICE_LENGTH + "s |",
+                "Date/Time", "Stock Symbol", "Transaction", "Quantity", "Unit Price"
+        );
+
+
+        final String HORIZONTAL_LINE2 ="|"+"=".repeat(HORIZONTAL_LINE.length()-2)+"|";
+        final String HORIZONTAL_LINE3 = "=".repeat(HORIZONTAL_LINE.length());
+
+        System.out.println(HORIZONTAL_LINE);
+        System.out.println(HEADER);
+        System.out.println(HORIZONTAL_LINE2);
+
+        final String DATA_LINE_FORMAT = String.format(
+                "| %-" + 1 + "s | %-" + 1 + "s | %-" + 1 + "s | %-" + 1 + "s | %-" +1 + "s |\n",
+                "%s", "%s", "%s", "%s", "%s"
+        );
+
+
+        for (Trade trade : tradeList) {
+            System.out.printf(
+                    DATA_LINE_FORMAT,
+                    trade.getTradeDateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    trade.getStockSymbol(),
+                    trade.getTransactionType(),
+                    trade.getQuantity(),
+                    decimalFormat.format(trade.getUnitPrice()));
+
+
+
+        }
+
+        System.out.println(HORIZONTAL_LINE3);
+    }
+}
+///////////////////
+
+
